@@ -1,0 +1,18 @@
+services:
+  ingestion:
+    build:
+      context: ./Phase 2
+      dockerfile: Dockerfile
+    container_name: phase2-energy-ingestion
+    profiles: ["ingestion"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-energy_user}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in repository-root .env}@postgres:5432/${POSTGRES_DB:-energy_db}
+      RAW_DATA_DIR: /data/raw
+      OWID_CSV_URL: ${OWID_CSV_URL:-https://catalog.ourworldindata.org/garden/energy/2026-09-10/owid_energy/owid_energy.csv}
+      INSERT_BATCH_SIZE: ${INSERT_BATCH_SIZE:-500}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - "./Phase 2/data:/data"
+    depends_on:
+      postgres:
+        condition: service_healthy
