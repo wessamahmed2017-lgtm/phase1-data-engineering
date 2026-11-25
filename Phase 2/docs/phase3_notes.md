@@ -29,6 +29,19 @@ The loader compares the CSV count, ingestion-run count, and raw JSONB count befo
 
 The dimension join lets country-only views exclude aggregates while the normalized fact table retains all dataset entities. The raw-row reference supports traceability and the fact grain supports the year-by-year project questions.
 
+### ER diagram
+
+```mermaid
+erDiagram
+    RAW_INGESTION_RUNS ||--o{ ANALYTICS_CLEANING_RUNS : source_ingestion_run_id
+    ANALYTICS_CLEANING_RUNS ||--o{ ANALYTICS_FACT_ENERGY_METRICS : cleaning_run_id
+    ANALYTICS_DIM_COUNTRY ||--o{ ANALYTICS_FACT_ENERGY_METRICS : entity_code
+    RAW_ENERGY_OBSERVATIONS ||--o{ ANALYTICS_FACT_ENERGY_METRICS : source_run_id_and_row_number
+    ANALYTICS_CLEANING_RUNS ||--o{ ANALYTICS_DATA_QUALITY_LOG : cleaning_run_id
+```
+
+The fact table's primary key is the composite `(entity_code, year)`. Its source-observation foreign key is the composite `(source_run_id, source_row_number)`, matching the raw table's composite key `(run_id, row_number)`. Each fact belongs to one country/entity, one successful or failed cleaning run, and one raw source observation. A cleaning run can have many facts and quality-check log rows.
+
 ## Analytical questions and SQL views
 
 The CSV uses the field names finalized in Phase 2: `renewables_energy_twh`, `renewables_energy_share_pct`, `fossil_fuels_energy_share_pct`, `low_carbon_energy_share_pct`, `total_energy_twh`, and `total_energy_per_capita_kwh`. It does not have total national `co2_per_capita`; the energy/CO2 view therefore computes electricity-generation CO2-equivalent tonnes per person from `electricity_emissions_mtco2eq` and `population`. This narrower proxy is called out in the view and quality notes.
