@@ -40,3 +40,29 @@ LIMIT 5;
 ```
 
 The Phase 2 lab asks for an in-person live defense. There is no Phase 2 video submission; bring the repository and run the pipeline live.
+
+## Phase 3 cleaning, relational model, and data quality
+
+Phase 3 keeps the Phase 2 raw CSV and JSONB rows unchanged. It validates the pinned CSV against the latest successful ingestion run, removes exact duplicate CSV rows, loads normalized country/entity and country-year fact tables, builds analytical views, and halts with a non-zero exit if any quality check fails.
+
+From the repository root, start PostgreSQL and run Phase 2 ingestion as above. Then build and run the clean pipeline:
+
+```powershell
+docker compose -f docker-compose.yml -f "Phase 2/docker-compose.phase2.yml" -f "Phase 2/docker-compose.phase3.yml" --profile cleaning run --build --rm cleaning
+```
+
+The Phase 3 service waits for the existing PostgreSQL health check. It reads `Phase 2/data/raw/owid_energy.csv` and references the matching Phase 2 run in `raw.ingestion_runs`. The pipeline creates `analytics.dim_country`, `analytics.fact_energy_metrics`, `analytics.cleaning_runs`, and `analytics.data_quality_log`, and then creates the five SQL views in `Phase 2/sql/analytics_views.sql`.
+
+Run the database-free pass/fail checks:
+
+```powershell
+docker compose -f docker-compose.yml -f "Phase 2/docker-compose.phase2.yml" -f "Phase 2/docker-compose.phase3.yml" --profile cleaning run --build --rm --no-deps cleaning python -m unittest discover -s tests -v
+```
+
+After one successful clean run, demonstrate the post-load SQL failure path. The injected negative value exists only inside a database transaction; the demo runs the same SQL checks as the pipeline and rolls the transaction back:
+
+```powershell
+docker compose -f docker-compose.yml -f "Phase 2/docker-compose.phase2.yml" -f "Phase 2/docker-compose.phase3.yml" --profile cleaning run --rm cleaning python clean_transform.py --demo-bad-data
+```
+
+See `Phase 2/docs/phase3_notes.md` for the three project questions, before/after row counts, run sequence, and live-demo queries. See `Phase 2/docs/DATA_QUALITY.md` for each rule, threshold, failure behavior, and expected pass/fail output.
