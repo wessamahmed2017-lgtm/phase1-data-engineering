@@ -1,0 +1,18 @@
+services:
+  cleaning:
+    build:
+      context: ./Phase 2
+      dockerfile: Dockerfile
+    container_name: phase3-energy-cleaning
+    profiles: ["cleaning"]
+    command: ["python", "clean_transform.py"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-energy_user}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in repository-root .env}@postgres:5432/${POSTGRES_DB:-energy_db}
+      RAW_DATA_DIR: /data/raw
+      SQL_DIR: /app/sql
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - "./Phase 2/data:/data"
+    depends_on:
+      postgres:
+        condition: service_healthy

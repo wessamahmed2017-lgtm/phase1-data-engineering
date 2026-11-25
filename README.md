@@ -4,9 +4,12 @@
 Global Energy Trends using the Our World in Data Energy dataset.
 
 ## Repository layout
-- `docs/` proposal and architecture
-- `scripts/` reserved for Phase 2 extraction and cleaning
-- `sql/` reserved for schemas and quality checks
+- `docs/` proposal and phase notes
+- `Phase 2/scripts/` ingestion, raw profiling, and Phase 3 cleaning/loading
+- `Phase 2/sql/` raw and clean schemas, quality checks, and analytical views
+- `Phase 2/tests/` pass/fail tests for cleaning rules
+- `Phase 2/docker-compose.phase2.yml` Phase 2 ingestion service
+- `Phase 2/docker-compose.phase3.yml` Phase 3 cleaning service
 - `flows/` reserved for Kestra orchestration
 - `docker-compose.yml` PostgreSQL and pgAdmin services
 - `.env.example` local configuration template
@@ -25,3 +28,5 @@ The PostgreSQL health check gates pgAdmin startup. Containers communicate by the
 https://catalog.ourworldindata.org/energy/owid_energy/
 
 See `docs/proposal.md` for questions, expected database tables, and team details.
+
+Phase 2 ingestion and Phase 3 cleaning steps are documented in `Phase 2/README.md`. Phase 3 rules and null thresholds are in `Phase 2/docs/DATA_QUALITY.md`.
