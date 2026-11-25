@@ -263,17 +263,18 @@ def _persist_failure(
                    WHERE cleaning_run_id=%s""",
                 (datetime.now(timezone.utc), str(error)[:2000], cleaning_run_id),
             )
-            conn.executemany(
-                """INSERT INTO analytics.data_quality_log
-                   (cleaning_run_id, check_name, status, details, checked_at)
-                   VALUES (%s,%s,%s,%s,%s)
-                   ON CONFLICT (cleaning_run_id, check_name) DO UPDATE
-                   SET status=EXCLUDED.status, details=EXCLUDED.details, checked_at=EXCLUDED.checked_at""",
-                [
-                    (cleaning_run_id, name, status, details[:2000], datetime.now(timezone.utc))
-                    for name, status, details in checks
-                ],
-            )
+            with conn.cursor() as cursor:
+                cursor.executemany(
+                    """INSERT INTO analytics.data_quality_log
+                       (cleaning_run_id, check_name, status, details, checked_at)
+                       VALUES (%s,%s,%s,%s,%s)
+                       ON CONFLICT (cleaning_run_id, check_name) DO UPDATE
+                       SET status=EXCLUDED.status, details=EXCLUDED.details, checked_at=EXCLUDED.checked_at""",
+                    [
+                        (cleaning_run_id, name, status, details[:2000], datetime.now(timezone.utc))
+                        for name, status, details in checks
+                    ],
+                )
     except Exception:
         logger.exception("could_not_record_failed_cleaning_run run_id=%s", cleaning_run_id)
 
@@ -351,17 +352,18 @@ def run_pipeline() -> int:
             with conn.transaction():
                 conn.execute("DELETE FROM analytics.fact_energy_metrics")
                 conn.execute("DELETE FROM analytics.dim_country")
-                conn.executemany(
-                    insert_entity_sql,
-                    [
-                        (entity["entity_code"], entity["iso_code"], entity["country_name"], entity["entity_type"])
-                        for entity in entities.values()
-                    ],
-                )
-                conn.executemany(
-                    fact_sql,
-                    [tuple(fact[column] for column in fact_columns[:-1]) + (cleaning_run_id,) for fact in facts],
-                )
+                with conn.cursor() as cursor:
+                    cursor.executemany(
+                        insert_entity_sql,
+                        [
+                            (entity["entity_code"], entity["iso_code"], entity["country_name"], entity["entity_type"])
+                            for entity in entities.values()
+                        ],
+                    )
+                    cursor.executemany(
+                        fact_sql,
+                        [tuple(fact[column] for column in fact_columns[:-1]) + (cleaning_run_id,) for fact in facts],
+                    )
                 conn.execute(
                     """UPDATE analytics.cleaning_runs SET raw_rows=%s, duplicate_rows=%s, cleaned_rows=%s
                        WHERE cleaning_run_id=%s""",
@@ -369,15 +371,16 @@ def run_pipeline() -> int:
                 )
                 failed_checks = _checks_as_tuples(conn.execute(quality_sql).fetchall())
                 _assert_quality_passed(failed_checks)
-                conn.executemany(
-                    """INSERT INTO analytics.data_quality_log
-                       (cleaning_run_id, check_name, status, details, checked_at)
-                       VALUES (%s,%s,%s,%s,%s)""",
-                    [
-                        (cleaning_run_id, name, status, details[:2000], datetime.now(timezone.utc))
-                        for name, status, details in failed_checks
-                    ],
-                )
+                with conn.cursor() as cursor:
+                    cursor.executemany(
+                        """INSERT INTO analytics.data_quality_log
+                           (cleaning_run_id, check_name, status, details, checked_at)
+                           VALUES (%s,%s,%s,%s,%s)""",
+                        [
+                            (cleaning_run_id, name, status, details[:2000], datetime.now(timezone.utc))
+                            for name, status, details in failed_checks
+                        ],
+                    )
                 conn.execute(
                     """UPDATE analytics.cleaning_runs SET status='succeeded', finished_at=%s, error=NULL
                        WHERE cleaning_run_id=%s""",
